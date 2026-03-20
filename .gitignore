@@ -1,0 +1,9 @@
+node_modules/
+.DS_Store
+dist/
+.astro/
+.wrangler/
+__pycache__/
+*.pyc
+scripts/github_token.txt
+scripts/create_repo_and_push.log
