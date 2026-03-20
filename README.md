@@ -31,6 +31,24 @@ This workspace contains setup scripts for a static personal blog deployed on Clo
   - reminds you to create an empty `ztt-blog` repository
 - `scripts/blog_config.json`
   - stores the GitHub owner, repo name, branch, and local git identity defaults
+- `scripts/test_github_connectivity.py`
+  - checks DNS, HTTPS, and Git access to GitHub from the current machine
+- `scripts/setup_ssh_for_github.py`
+  - generates a dedicated GitHub SSH key and prints the public key
+- `scripts/open_github_ssh_keys.py`
+  - opens the GitHub SSH keys settings page
+- `scripts/push_via_ssh.py`
+  - switches `origin` to SSH and pushes `main`
+- `scripts/trust_github_host.py`
+  - fetches GitHub's SSH host keys and appends them to `known_hosts`
+- `scripts/configure_github_ssh.py`
+  - writes an SSH config entry so `github.com` uses the dedicated blog key
+- `scripts/test_github_ssh.py`
+  - tests SSH authentication to GitHub
+- `scripts/update_blog.py`
+  - stages local blog changes, creates a commit, and pushes to GitHub
+- `scripts/preview_blog.py`
+  - starts the local Astro preview server with one command
 
 ## Run it
 
