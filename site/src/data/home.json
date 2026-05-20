@@ -10,6 +10,10 @@
   "panelTitle": "Cloudflare Pages 静态部署",
   "panelText": "Astro 生成页面，Markdown/MDX 写文章。没有数据库，没有后台服务，适合低成本长期维护。",
   "heroBackground": "/uploads/home/2.png",
+  "heroOverlayStart": 0.72,
+  "heroOverlayEnd": 0.42,
+  "heroPanelOpacity": 0.82,
+  "secondaryButtonOpacity": 0.86,
   "showLatestPosts": true,
   "showTopics": true,
   "sections": [

@@ -12,7 +12,20 @@ import { getPublishedPosts } from '../utils/posts';
 const posts = await getPublishedPosts();
 const latestPosts = posts.slice(0, 3);
 const allTags = [...new Set(posts.flatMap((post) => post.data.tags))].slice(0, 8);
-const homeStyle = home.heroBackground ? `--hero-bg: url('${home.heroBackground}')` : '';
+const opacity = (value: unknown, fallback: number) => {
+	const parsed = Number(value);
+	if (Number.isNaN(parsed)) return fallback;
+	return Math.min(1, Math.max(0, parsed));
+};
+const homeStyle = [
+	home.heroBackground ? `--hero-bg: url('${home.heroBackground}')` : '',
+	`--hero-overlay-start: ${opacity(home.heroOverlayStart, 0.72)}`,
+	`--hero-overlay-end: ${opacity(home.heroOverlayEnd, 0.42)}`,
+	`--hero-panel-opacity: ${opacity(home.heroPanelOpacity, 0.82)}`,
+	`--secondary-button-opacity: ${opacity(home.secondaryButtonOpacity, 0.86)}`,
+]
+	.filter(Boolean)
+	.join('; ');
 const customSections = home.sections?.filter((section) => section.enabled) ?? [];
 ---
 

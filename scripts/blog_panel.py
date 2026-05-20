@@ -66,6 +66,10 @@ DEFAULT_HOME: dict[str, Any] = {
     "panelTitle": "Cloudflare Pages 静态部署",
     "panelText": "Astro 生成页面，Markdown/MDX 写文章。没有数据库，没有后台服务，适合低成本长期维护。",
     "heroBackground": "",
+    "heroOverlayStart": 0.72,
+    "heroOverlayEnd": 0.42,
+    "heroPanelOpacity": 0.82,
+    "secondaryButtonOpacity": 0.86,
     "showLatestPosts": True,
     "showTopics": True,
     "sections": [],
@@ -172,6 +176,14 @@ def yaml_quote(value: str) -> str:
 
 def parse_checkbox(value: str) -> bool:
     return value == "on"
+
+
+def parse_opacity(value: str, fallback: float) -> float:
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return fallback
+    return round(min(1.0, max(0.0, parsed)), 2)
 
 
 def safe_filename(filename: str, fallback: str = "image") -> str:
@@ -573,6 +585,10 @@ def update_home_settings(form: dict[str, str], files: dict[str, UploadedFile] | 
         home[key] = form.get(key, "").strip()
     home["showLatestPosts"] = parse_checkbox(form.get("showLatestPosts", ""))
     home["showTopics"] = parse_checkbox(form.get("showTopics", ""))
+    home["heroOverlayStart"] = parse_opacity(form.get("heroOverlayStart", ""), 0.72)
+    home["heroOverlayEnd"] = parse_opacity(form.get("heroOverlayEnd", ""), 0.42)
+    home["heroPanelOpacity"] = parse_opacity(form.get("heroPanelOpacity", ""), 0.82)
+    home["secondaryButtonOpacity"] = parse_opacity(form.get("secondaryButtonOpacity", ""), 0.86)
 
     try:
         background = save_public_image((files or {}).get("heroBackgroundFile"), "home", "home-background")
@@ -895,11 +911,14 @@ def render_page(message: CommandResult | None = None, edit_file: str = "") -> st
     label {{ display:block; color:var(--muted); font-size:.92rem; margin:10px 0 4px; }}
     input, select, textarea {{ width:100%; border:1px solid var(--line); border-radius:8px; padding:10px 12px; font:inherit; background:#fff; }}
     input[type="number"] {{ min-width:72px; }}
+    input[type="range"] {{ padding:0; }}
     textarea {{ min-height:84px; resize:vertical; }}
     .body-editor {{ min-height:420px; font-family:Consolas, "Microsoft YaHei", monospace; line-height:1.55; }}
     .hint {{ display:block; margin-top:4px; color:var(--muted); font-size:.86rem; }}
     .compact {{ display:flex; align-items:center; gap:6px; margin:0; color:var(--ink); white-space:nowrap; }}
     .compact input {{ width:auto; }}
+    .field-grid {{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px 16px; }}
+    .range-line {{ display:grid; grid-template-columns:minmax(0,1fr) 4.5rem; gap:10px; align-items:center; }}
     button, .button {{ display:inline-flex; align-items:center; justify-content:center; min-height:38px; border:0; border-radius:8px; background:var(--accent); color:#fff; padding:8px 14px; font-weight:700; text-decoration:none; cursor:pointer; }}
     button.secondary, .button.secondary {{ background:#111827; }}
     button.ghost, .button.ghost {{ background:#eef2ff; color:#1e40af; min-height:32px; }}
@@ -1017,6 +1036,38 @@ def render_page(message: CommandResult | None = None, edit_file: str = "") -> st
           <input name="heroBackground" value="{html_escape(home.get('heroBackground', ''))}" placeholder="/uploads/home/background.webp">
           <label>上传首页背景图（jpg、png、webp、avif、gif、svg）</label>
           <input name="heroBackgroundFile" type="file" accept=".jpg,.jpeg,.png,.webp,.avif,.gif,.svg,image/*">
+          <h3>透明度</h3>
+          <div class="field-grid">
+            <div>
+              <label>背景左侧白色遮罩</label>
+              <div class="range-line">
+                <input name="heroOverlayStart" type="range" min="0" max="1" step="0.01" value="{html_escape(home.get('heroOverlayStart', 0.72))}" oninput="this.nextElementSibling.value=this.value">
+                <input type="number" min="0" max="1" step="0.01" value="{html_escape(home.get('heroOverlayStart', 0.72))}" oninput="this.previousElementSibling.value=this.value; this.previousElementSibling.name='heroOverlayStart'">
+              </div>
+            </div>
+            <div>
+              <label>背景右侧白色遮罩</label>
+              <div class="range-line">
+                <input name="heroOverlayEnd" type="range" min="0" max="1" step="0.01" value="{html_escape(home.get('heroOverlayEnd', 0.42))}" oninput="this.nextElementSibling.value=this.value">
+                <input type="number" min="0" max="1" step="0.01" value="{html_escape(home.get('heroOverlayEnd', 0.42))}" oninput="this.previousElementSibling.value=this.value; this.previousElementSibling.name='heroOverlayEnd'">
+              </div>
+            </div>
+            <div>
+              <label>当前状态卡片透明度</label>
+              <div class="range-line">
+                <input name="heroPanelOpacity" type="range" min="0" max="1" step="0.01" value="{html_escape(home.get('heroPanelOpacity', 0.82))}" oninput="this.nextElementSibling.value=this.value">
+                <input type="number" min="0" max="1" step="0.01" value="{html_escape(home.get('heroPanelOpacity', 0.82))}" oninput="this.previousElementSibling.value=this.value; this.previousElementSibling.name='heroPanelOpacity'">
+              </div>
+            </div>
+            <div>
+              <label>次按钮透明度</label>
+              <div class="range-line">
+                <input name="secondaryButtonOpacity" type="range" min="0" max="1" step="0.01" value="{html_escape(home.get('secondaryButtonOpacity', 0.86))}" oninput="this.nextElementSibling.value=this.value">
+                <input type="number" min="0" max="1" step="0.01" value="{html_escape(home.get('secondaryButtonOpacity', 0.86))}" oninput="this.previousElementSibling.value=this.value; this.previousElementSibling.name='secondaryButtonOpacity'">
+              </div>
+            </div>
+          </div>
+          <span class="hint">数值越低越透明。背景遮罩太低会影响文字可读性，建议左侧 0.55-0.8、右侧 0.25-0.55。</span>
           <label><input style="width:auto" type="checkbox" name="clearHeroBackground"> 清空首页背景图</label>
           <label><input style="width:auto" type="checkbox" name="showLatestPosts" {'checked' if home.get('showLatestPosts') else ''}> 显示“最近文章”栏目</label>
           <label><input style="width:auto" type="checkbox" name="showTopics" {'checked' if home.get('showTopics') else ''}> 显示“正在整理的主题”栏目</label>

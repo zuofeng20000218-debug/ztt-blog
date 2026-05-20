@@ -233,7 +233,11 @@ footer {
 	min-height: 520px;
 	padding: 3rem;
 	background:
-		linear-gradient(90deg, rgba(248, 250, 252, 0.72), rgba(248, 250, 252, 0.42)),
+		linear-gradient(
+			90deg,
+			rgba(248, 250, 252, var(--hero-overlay-start, 0.72)),
+			rgba(248, 250, 252, var(--hero-overlay-end, 0.42))
+		),
 		var(--hero-bg) center / cover no-repeat;
 }
 
@@ -262,7 +266,7 @@ footer {
 .callout {
 	border: 1px solid rgb(var(--line));
 	border-radius: 8px;
-	background: rgba(var(--surface), 0.82);
+	background: rgba(var(--surface), var(--hero-panel-opacity, 0.82));
 	padding: 1.2rem;
 	box-shadow: var(--shadow);
 	backdrop-filter: blur(12px);
@@ -290,7 +294,7 @@ footer {
 
 .button.secondary {
 	border: 1px solid rgb(var(--line));
-	background: rgba(var(--surface), 0.86);
+	background: rgba(var(--surface), var(--secondary-button-opacity, 0.86));
 	color: rgb(var(--ink));
 	backdrop-filter: blur(8px);
 }
