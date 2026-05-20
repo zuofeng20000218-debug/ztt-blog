@@ -53,7 +53,6 @@ python .\scripts\blog_panel.py
 
 - `open-blog-panel.bat`
 - `scripts/blog_panel.py`
-- `scripts/open_blog_panel.py`
 - `scripts/update_blog.py`
 - `docs/blog-control-panel.md`
 - `site/src/data/friends.json`

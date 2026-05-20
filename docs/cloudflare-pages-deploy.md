@@ -1,77 +1,40 @@
-# Cloudflare Pages deployment checklist
+# Cloudflare Pages 部署说明
 
-This checklist assumes:
+这个博客是静态站点，Cloudflare Pages 只需要从 GitHub 拉取仓库并构建 `site/` 目录。
 
-- repo root: `D:\Blog`
-- site directory: `site`
-- production domain: `https://www.200302.xyz`
-- temporary Pages URL: `https://personal-blog.pages.dev`
+## Pages 配置
 
-## 1. Local setup
+- 生产分支：`main`
+- 根目录：`site`
+- 构建命令：`npm run build`
+- 输出目录：`dist`
+- 生产域名：`https://www.200302.xyz`
 
-If Node.js is not installed, install the current LTS release first:
+## 本地发布流程
 
-- [Node.js](https://nodejs.org/)
+推荐用控制面板完成发布：
 
-If the site has not been created yet, run:
+1. 双击仓库根目录的 `open-blog-panel.bat`。
+2. 点击“构建检查”。
+3. 确认没问题后点击“构建并推送”。
+4. Cloudflare Pages 会在 GitHub 收到 push 后自动构建并部署。
 
-```powershell
-Set-Location "D:\Blog"
-.\scripts\bootstrap-blog.ps1
-```
-
-## 2. Verify the site locally
-
-```powershell
-Set-Location "D:\Blog\site"
-npm install
-npm run dev
-```
-
-When ready to test production output:
+命令行方式：
 
 ```powershell
-Set-Location "D:\Blog\site"
-npm run build
+Set-Location D:\Blog
+python .\scripts\update_blog.py -m "update blog"
 ```
 
-Cloudflare Pages' Astro guide currently lists:
+## 自定义域名
 
-- Production branch: `main`
-- Build command: `npm run build`
-- Build directory: `dist`
+在 Cloudflare Pages 项目的 Custom domains 中添加：
 
-## 3. Push to GitHub
-
-Create an empty GitHub repository first, then run:
-
-```powershell
-Set-Location "D:\Blog"
-git init
-git checkout -b main
-git add .
-git commit -m "Initial blog scaffold"
-git remote add origin <your-github-repo-url>
-git push -u origin main
+```text
+www.200302.xyz
 ```
 
-## 4. Create the Pages project
-
-In Cloudflare Pages:
-
-1. Create a new Pages project and connect your GitHub repository.
-2. Set the root directory to `site` if the repo contains more than the site.
-3. Use build command `npm run build`.
-4. Use build output directory `dist`.
-5. Deploy and confirm the site works on `https://personal-blog.pages.dev`.
-
-## 5. Add your custom domain
-
-In the Pages project's **Custom domains** section:
-
-1. Add `www.200302.xyz`.
-2. Wait for Cloudflare to show the required target.
-3. In your domain registrar's DNS panel, create:
+DNS 记录通常是：
 
 ```text
 Type:   CNAME
@@ -79,17 +42,4 @@ Name:   www
 Target: <your-pages-project>.pages.dev
 ```
 
-Important:
-
-- Add the custom domain inside Cloudflare Pages before creating the DNS record manually.
-- For an externally managed domain, Cloudflare documents the subdomain setup as a CNAME pointing to `<YOUR_SITE>.pages.dev`.
-- Do not change the apex (`200302.xyz`) unless you intentionally want the root domain to serve the blog too.
-
-## 6. Optional root-domain redirect
-
-Once `www.200302.xyz` is stable, decide whether `200302.xyz` should:
-
-- stay unused for now, or
-- redirect to `https://www.200302.xyz`
-
-Keep this as a second step. Do not change existing root records until you confirm they are safe to replace.
+先在 Cloudflare Pages 里添加自定义域名，再按 Cloudflare 给出的目标配置 DNS。

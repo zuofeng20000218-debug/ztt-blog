@@ -67,9 +67,7 @@ D:\Blog
 │  └─ cloudflare-pages-deploy.md  # Cloudflare Pages 部署说明
 ├─ scripts/
 │  ├─ blog_panel.py               # 控制面板服务
-│  ├─ open_blog_panel.py          # Python 启动入口
-│  ├─ update_blog.py              # 构建、提交、推送
-│  └─ blog_config.json            # GitHub 和 Git 默认配置
+│  └─ update_blog.py              # 构建、提交、推送
 └─ site/
    ├─ src/
    │  ├─ assets/                  # 图片资源
@@ -130,7 +128,6 @@ site/src/data/friends.json
 - `site/.astro/`
 - `.env`、`.env.*`
 - `scripts/github_token.txt`
-- `scripts/create_repo_and_push.log`
 - Python 缓存
 - SSH 私钥和常见证书文件
 

@@ -25,7 +25,7 @@ npm run dev
 - `src/content/blog/`：文章
 - `src/pages/index.astro`：首页
 - `src/pages/about.astro`：关于页
-- `src/data/friends.ts`：友链数据
+- `src/data/friends.json`：友链数据
 - `src/styles/global.css`：全站样式
 
 ## 构建检查
