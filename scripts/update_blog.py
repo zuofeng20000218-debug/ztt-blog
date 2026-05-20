@@ -13,7 +13,22 @@ SITE_DIR = ROOT / "site"
 DEFAULT_MESSAGE = "update blog"
 
 
+def configure_stdio() -> None:
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure:
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
+
+
+configure_stdio()
+
+
 def run(cmd: list[str], check: bool = True) -> subprocess.CompletedProcess[str]:
+    env = os.environ.copy()
+    env["PYTHONIOENCODING"] = "utf-8"
     return subprocess.run(
         cmd,
         cwd=str(ROOT),
@@ -22,6 +37,7 @@ def run(cmd: list[str], check: bool = True) -> subprocess.CompletedProcess[str]:
         capture_output=True,
         encoding="utf-8",
         errors="replace",
+        env=env,
     )
 
 
@@ -39,6 +55,7 @@ def npm_command() -> str:
 def build_site() -> None:
     env = dict(os.environ)
     env["ASTRO_TELEMETRY_DISABLED"] = "1"
+    env["PYTHONIOENCODING"] = "utf-8"
     result = subprocess.run(
         [npm_command(), "run", "build"],
         cwd=str(SITE_DIR),

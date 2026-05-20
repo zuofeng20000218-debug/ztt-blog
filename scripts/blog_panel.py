@@ -88,6 +88,7 @@ def node_modules_ready() -> bool:
 def run_command(cmd: list[str], cwd: Path = ROOT, timeout: int = 120) -> CommandResult:
     env = os.environ.copy()
     env["ASTRO_TELEMETRY_DISABLED"] = "1"
+    env["PYTHONIOENCODING"] = "utf-8"
     try:
         result = subprocess.run(
             cmd,
@@ -744,7 +745,10 @@ def update_blog(form: dict[str, str]) -> CommandResult:
     build = build_site()
     if build.code != 0:
         return CommandResult(build.code, "构建失败，已取消提交。\n\n" + build.output)
-    result = run_command([sys.executable, str(ROOT / "scripts" / "update_blog.py"), "-m", message], timeout=180)
+    result = run_command(
+        [sys.executable, str(ROOT / "scripts" / "update_blog.py"), "-m", message, "--skip-build"],
+        timeout=180,
+    )
     return CommandResult(result.code, "构建已通过。\n\n" + result.output)
 
 
