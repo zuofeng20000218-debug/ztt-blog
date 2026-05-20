@@ -52,6 +52,7 @@ class UploadedFile:
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".avif", ".gif", ".svg"}
 COVER_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".avif"}
 HOME_FILE = SITE_DIR / "src" / "data" / "home.json"
+NAVIGATION_FILE = SITE_DIR / "src" / "data" / "navigation.json"
 PUBLIC_UPLOADS_DIR = SITE_DIR / "public" / "uploads"
 DEFAULT_HOME: dict[str, Any] = {
     "kicker": "个人博客 / 学习记录 / 项目日志",
@@ -69,6 +70,15 @@ DEFAULT_HOME: dict[str, Any] = {
     "showTopics": True,
     "sections": [],
 }
+DEFAULT_NAVIGATION: list[dict[str, Any]] = [
+    {"label": "首页", "href": "/", "enabled": True},
+    {"label": "文章", "href": "/blog", "enabled": True},
+    {"label": "归档", "href": "/archive", "enabled": True},
+    {"label": "标签", "href": "/tags", "enabled": True},
+    {"label": "搜索", "href": "/search", "enabled": True},
+    {"label": "友链", "href": "/links", "enabled": True},
+    {"label": "关于", "href": "/about", "enabled": True},
+]
 
 
 def node_modules_ready() -> bool:
@@ -227,6 +237,24 @@ def write_home(data: dict[str, Any]) -> None:
     HOME_FILE.parent.mkdir(parents=True, exist_ok=True)
     HOME_FILE.write_text(
         json.dumps(data, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def read_navigation() -> list[dict[str, Any]]:
+    if NAVIGATION_FILE.exists():
+        loaded = json.loads(NAVIGATION_FILE.read_text(encoding="utf-8"))
+        if isinstance(loaded, list):
+            items = [item for item in loaded if isinstance(item, dict)]
+            if items:
+                return items
+    return [item.copy() for item in DEFAULT_NAVIGATION]
+
+
+def write_navigation(items: list[dict[str, Any]]) -> None:
+    NAVIGATION_FILE.parent.mkdir(parents=True, exist_ok=True)
+    NAVIGATION_FILE.write_text(
+        json.dumps(items, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
 
@@ -575,6 +603,55 @@ def update_home_settings(form: dict[str, str], files: dict[str, UploadedFile] | 
     return CommandResult(0, "首页设置已保存。启动预览或构建后就能看到效果。")
 
 
+def update_navigation(form: dict[str, str]) -> CommandResult:
+    items = read_navigation()
+    updated: list[dict[str, Any]] = []
+
+    for index, item in enumerate(items):
+        if parse_checkbox(form.get(f"delete_{index}", "")):
+            continue
+        label = form.get(f"label_{index}", "").strip()
+        href = form.get(f"href_{index}", "").strip()
+        if not label or not href:
+            continue
+        try:
+            order = int(form.get(f"order_{index}", str(index + 1)))
+        except ValueError:
+            order = index + 1
+        updated.append(
+            {
+                "label": label,
+                "href": href,
+                "enabled": parse_checkbox(form.get(f"enabled_{index}", "")),
+                "_order": order,
+            }
+        )
+
+    new_label = form.get("new_label", "").strip()
+    new_href = form.get("new_href", "").strip()
+    if new_label and new_href:
+        try:
+            new_order = int(form.get("new_order", str(len(updated) + 1)))
+        except ValueError:
+            new_order = len(updated) + 1
+        updated.append(
+            {
+                "label": new_label,
+                "href": new_href,
+                "enabled": parse_checkbox(form.get("new_enabled", "on")),
+                "_order": new_order,
+            }
+        )
+
+    updated.sort(key=lambda item: item.get("_order", 999))
+    for item in updated:
+        item.pop("_order", None)
+    if not updated:
+        return CommandResult(1, "导航栏至少保留一个栏目。")
+    write_navigation(updated)
+    return CommandResult(0, "导航栏目已保存。刷新预览即可看到变化。")
+
+
 def add_friend(form: dict[str, str], files: dict[str, UploadedFile] | None = None) -> CommandResult:
     name = form.get("name", "").strip()
     url = form.get("url", "").strip()
@@ -679,6 +756,7 @@ def render_page(message: CommandResult | None = None, edit_file: str = "") -> st
     posts = list_posts()
     friends = read_friends()
     home = read_home()
+    navigation = read_navigation()
     home_section = home["sections"][0] if home.get("sections") else {}
     git_status = get_git_status()
     preview_running = is_port_open(PREVIEW_HOST, PREVIEW_PORT)
@@ -719,6 +797,18 @@ def render_page(message: CommandResult | None = None, edit_file: str = "") -> st
         </tr>
         """
         for friend in friends
+    )
+    navigation_rows = "\n".join(
+        f"""
+        <tr>
+          <td><input name="order_{index}" type="number" min="1" value="{index + 1}"></td>
+          <td><input name="label_{index}" required value="{html_escape(item.get('label', ''))}"></td>
+          <td><input name="href_{index}" required value="{html_escape(item.get('href', ''))}" placeholder="/blog"></td>
+          <td><label class="compact"><input type="checkbox" name="enabled_{index}" {'checked' if item.get('enabled', True) else ''}> 显示</label></td>
+          <td><label class="compact"><input type="checkbox" name="delete_{index}"> 删除</label></td>
+        </tr>
+        """
+        for index, item in enumerate(navigation)
     )
     edit_form_html = ""
     if edit_file and not edit_post:
@@ -800,9 +890,12 @@ def render_page(message: CommandResult | None = None, edit_file: str = "") -> st
     .grid {{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:start; }}
     label {{ display:block; color:var(--muted); font-size:.92rem; margin:10px 0 4px; }}
     input, select, textarea {{ width:100%; border:1px solid var(--line); border-radius:8px; padding:10px 12px; font:inherit; background:#fff; }}
+    input[type="number"] {{ min-width:72px; }}
     textarea {{ min-height:84px; resize:vertical; }}
     .body-editor {{ min-height:420px; font-family:Consolas, "Microsoft YaHei", monospace; line-height:1.55; }}
     .hint {{ display:block; margin-top:4px; color:var(--muted); font-size:.86rem; }}
+    .compact {{ display:flex; align-items:center; gap:6px; margin:0; color:var(--ink); white-space:nowrap; }}
+    .compact input {{ width:auto; }}
     button, .button {{ display:inline-flex; align-items:center; justify-content:center; min-height:38px; border:0; border-radius:8px; background:var(--accent); color:#fff; padding:8px 14px; font-weight:700; text-decoration:none; cursor:pointer; }}
     button.secondary, .button.secondary {{ background:#111827; }}
     button.ghost, .button.ghost {{ background:#eef2ff; color:#1e40af; min-height:32px; }}
@@ -874,6 +967,25 @@ def render_page(message: CommandResult | None = None, edit_file: str = "") -> st
         </form>
       </div>
       {edit_form_html}
+      <div class="panel wide" id="navigation">
+        <h2>导航栏目</h2>
+        <form method="post" action="/action/update_navigation">
+          <table>
+            <thead><tr><th>顺序</th><th>名称</th><th>链接</th><th>显示</th><th>删除</th></tr></thead>
+            <tbody>{navigation_rows}</tbody>
+          </table>
+          <h3>新增栏目</h3>
+          <label>名称</label>
+          <input name="new_label" placeholder="例如：作品">
+          <label>链接</label>
+          <input name="new_href" placeholder="/projects">
+          <label>顺序</label>
+          <input name="new_order" type="number" min="1" value="{len(navigation) + 1}">
+          <label class="compact"><input type="checkbox" name="new_enabled" checked> 新栏目立即显示</label>
+          <span class="hint">链接可以填站内路径，比如 /blog、/about，也可以填完整外链。改完后启动预览刷新页面即可看到导航变化。</span>
+          <div class="actions"><button type="submit">保存导航栏目</button></div>
+        </form>
+      </div>
       <div class="panel wide" id="home-design">
         <h2>首页设计</h2>
         <form method="post" action="/action/update_home" enctype="multipart/form-data">
@@ -1037,6 +1149,7 @@ class BlogPanelHandler(BaseHTTPRequestHandler):
             "/action/save_post": lambda data: save_post(data, files),
             "/action/insert_post_image": lambda data: insert_post_image(data, files),
             "/action/update_home": lambda data: update_home_settings(data, files),
+            "/action/update_navigation": update_navigation,
             "/action/add_friend": lambda data: add_friend(data, files),
             "/action/delete_friend": delete_friend,
             "/action/start_preview": lambda _: start_preview(),
@@ -1073,10 +1186,13 @@ def main() -> int:
     FRIENDS_FILE.parent.mkdir(parents=True, exist_ok=True)
     PUBLIC_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
     HOME_FILE.parent.mkdir(parents=True, exist_ok=True)
+    NAVIGATION_FILE.parent.mkdir(parents=True, exist_ok=True)
     if not FRIENDS_FILE.exists():
         write_friends([])
     if not HOME_FILE.exists():
         write_home(DEFAULT_HOME)
+    if not NAVIGATION_FILE.exists():
+        write_navigation(DEFAULT_NAVIGATION)
 
     server = ThreadingHTTPServer((PANEL_HOST, args.port), BlogPanelHandler)
     url = f"http://{PANEL_HOST}:{args.port}/"

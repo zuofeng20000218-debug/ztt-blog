@@ -40,6 +40,7 @@ python .\scripts\blog_panel.py
 - 安装/更新依赖：在 `site/` 里执行 `npm ci` 或 `npm install`。
 - 新建文章：自动生成 Markdown/MDX 文件和 frontmatter。
 - 编辑已有文章：修改已发布文章或草稿的标题、摘要、标签、日期、封面、草稿状态和正文。
+- 导航栏目：维护顶部导航，支持新增、删除、改名、改链接、显示/隐藏和排序。
 - 首页设计：修改首页文案、背景图、按钮和栏目显示状态。
 - 给文章插入图片：上传图片并自动追加 Markdown 图片语法。
 - 发布草稿：把 `draft: true` 改成 `draft: false`。
@@ -61,6 +62,7 @@ python .\scripts\blog_panel.py
 - `docs/blog-control-panel.md`
 - `site/src/data/friends.json`
 - `site/src/data/home.json`
+- `site/src/data/navigation.json`
 - `site/src/content/blog/` 里的文章
 - `site/public/uploads/` 里的上传图片
 - `site/src/assets/` 里的图片
@@ -114,6 +116,16 @@ site/src/data/home.json
 ```
 
 日常建议直接用控制面板修改：可以改首页标题、说明、两个按钮、右侧信息、背景图，还可以打开或关闭“最近文章”“正在整理的主题”，并新增、隐藏或删除一个自定义首页栏目。
+
+## 导航栏
+
+顶部导航配置保存在：
+
+```text
+site/src/data/navigation.json
+```
+
+控制面板的“导航栏目”可以直接改截图里那排菜单：名称、链接、顺序、是否显示都能改，也可以新增或删除栏目。站内链接一般写成 `/blog`、`/tags` 这种路径，外部链接可以写完整的 `https://...`。
 
 ## 友链数据
 

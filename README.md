@@ -35,6 +35,7 @@ http://127.0.0.1:8765/
 
 - 新建 Markdown/MDX 文章草稿
 - 编辑已发布文章或草稿
+- 编辑顶部导航栏栏目，支持增删、改名、改链接、显示/隐藏和排序
 - 维护首页文案、背景图和首页栏目开关
 - 上传图片并插入文章正文
 - 发布草稿
@@ -79,6 +80,7 @@ D:\Blog
    │  ├─ content/blog/            # 文章
    │  ├─ data/friends.json        # 友链数据
    │  ├─ data/home.json           # 首页配置
+   │  ├─ data/navigation.json     # 顶部导航栏配置
    │  ├─ layouts/                 # 页面布局
    │  ├─ pages/                   # 页面路由
    │  ├─ styles/                  # 全局样式
@@ -131,6 +133,16 @@ site/src/data/friends.json
 ```
 
 可以用控制面板维护，也可以手动编辑 JSON。
+
+## 导航栏
+
+顶部“首页 / 文章 / 归档 / 标签 / 搜索 / 友链 / 关于”这一排可以在控制面板的“导航栏目”里维护。配置保存在：
+
+```text
+site/src/data/navigation.json
+```
+
+支持新增、删除、改名称、改链接、显示/隐藏和调整顺序。
 
 友链头像推荐通过控制面板上传到 `site/public/uploads/avatars/`，不要只依赖别人网站的头像外链。友链页已经加了加载失败兜底，头像失效时会自动显示 `/favicon.svg`。
 

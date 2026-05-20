@@ -1,0 +1,37 @@
+[
+  {
+    "label": "首页",
+    "href": "/",
+    "enabled": true
+  },
+  {
+    "label": "文章",
+    "href": "/blog",
+    "enabled": true
+  },
+  {
+    "label": "归档",
+    "href": "/archive",
+    "enabled": true
+  },
+  {
+    "label": "标签",
+    "href": "/tags",
+    "enabled": true
+  },
+  {
+    "label": "搜索",
+    "href": "/search",
+    "enabled": true
+  },
+  {
+    "label": "友链",
+    "href": "/links",
+    "enabled": true
+  },
+  {
+    "label": "关于",
+    "href": "/about",
+    "enabled": true
+  }
+]

@@ -1,19 +1,16 @@
 ---
 import { SITE_TITLE } from '../consts';
+import navigation from '../data/navigation.json';
 import HeaderLink from './HeaderLink.astro';
+
+const navItems = navigation.filter((item) => item.enabled);
 ---
 
 <header>
 	<nav>
 		<a class="site-name" href="/">{SITE_TITLE}</a>
 		<div class="internal-links">
-			<HeaderLink href="/">首页</HeaderLink>
-			<HeaderLink href="/blog">文章</HeaderLink>
-			<HeaderLink href="/archive">归档</HeaderLink>
-			<HeaderLink href="/tags">标签</HeaderLink>
-			<HeaderLink href="/search">搜索</HeaderLink>
-			<HeaderLink href="/links">友链</HeaderLink>
-			<HeaderLink href="/about">关于</HeaderLink>
+			{navItems.map((item) => <HeaderLink href={item.href}>{item.label}</HeaderLink>)}
 		</div>
 	</nav>
 </header>
