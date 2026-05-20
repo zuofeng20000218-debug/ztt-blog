@@ -69,6 +69,7 @@ DEFAULT_HOME: dict[str, Any] = {
     "heroOverlayStart": 0.72,
     "heroOverlayEnd": 0.42,
     "heroPanelOpacity": 0.82,
+    "primaryButtonOpacity": 1.0,
     "secondaryButtonOpacity": 0.86,
     "showLatestPosts": True,
     "showTopics": True,
@@ -588,6 +589,7 @@ def update_home_settings(form: dict[str, str], files: dict[str, UploadedFile] | 
     home["heroOverlayStart"] = parse_opacity(form.get("heroOverlayStart", ""), 0.72)
     home["heroOverlayEnd"] = parse_opacity(form.get("heroOverlayEnd", ""), 0.42)
     home["heroPanelOpacity"] = parse_opacity(form.get("heroPanelOpacity", ""), 0.82)
+    home["primaryButtonOpacity"] = parse_opacity(form.get("primaryButtonOpacity", ""), 1.0)
     home["secondaryButtonOpacity"] = parse_opacity(form.get("secondaryButtonOpacity", ""), 0.86)
 
     try:
@@ -1053,14 +1055,21 @@ def render_page(message: CommandResult | None = None, edit_file: str = "") -> st
               </div>
             </div>
             <div>
-              <label>当前状态卡片透明度</label>
+              <label>当前状态白色遮罩</label>
               <div class="range-line">
                 <input name="heroPanelOpacity" type="range" min="0" max="1" step="0.01" value="{html_escape(home.get('heroPanelOpacity', 0.82))}" oninput="this.nextElementSibling.value=this.value">
                 <input type="number" min="0" max="1" step="0.01" value="{html_escape(home.get('heroPanelOpacity', 0.82))}" oninput="this.previousElementSibling.value=this.value; this.previousElementSibling.name='heroPanelOpacity'">
               </div>
             </div>
             <div>
-              <label>次按钮透明度</label>
+              <label>主按钮透明度</label>
+              <div class="range-line">
+                <input name="primaryButtonOpacity" type="range" min="0" max="1" step="0.01" value="{html_escape(home.get('primaryButtonOpacity', 1.0))}" oninput="this.nextElementSibling.value=this.value">
+                <input type="number" min="0" max="1" step="0.01" value="{html_escape(home.get('primaryButtonOpacity', 1.0))}" oninput="this.previousElementSibling.value=this.value; this.previousElementSibling.name='primaryButtonOpacity'">
+              </div>
+            </div>
+            <div>
+              <label>副按钮透明度</label>
               <div class="range-line">
                 <input name="secondaryButtonOpacity" type="range" min="0" max="1" step="0.01" value="{html_escape(home.get('secondaryButtonOpacity', 0.86))}" oninput="this.nextElementSibling.value=this.value">
                 <input type="number" min="0" max="1" step="0.01" value="{html_escape(home.get('secondaryButtonOpacity', 0.86))}" oninput="this.previousElementSibling.value=this.value; this.previousElementSibling.name='secondaryButtonOpacity'">

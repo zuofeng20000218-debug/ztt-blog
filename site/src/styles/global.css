@@ -266,10 +266,14 @@ footer {
 .callout {
 	border: 1px solid rgb(var(--line));
 	border-radius: 8px;
-	background: rgba(var(--surface), var(--hero-panel-opacity, 0.82));
+	background: rgb(var(--surface));
 	padding: 1.2rem;
 	box-shadow: var(--shadow);
-	backdrop-filter: blur(12px);
+}
+
+.hero.has-bg .hero-panel {
+	border-color: transparent;
+	background: rgba(var(--surface), var(--hero-panel-opacity, 0.82));
 }
 
 .actions {
@@ -285,7 +289,7 @@ footer {
 	justify-content: center;
 	min-height: 2.6rem;
 	border-radius: 8px;
-	background: var(--accent);
+	background: rgba(37, 99, 235, var(--primary-button-opacity, 1));
 	color: white;
 	padding: 0.4rem 1rem;
 	font-weight: 700;
@@ -293,10 +297,9 @@ footer {
 }
 
 .button.secondary {
-	border: 1px solid rgb(var(--line));
+	border: 1px solid rgba(var(--line), var(--secondary-button-opacity, 0.86));
 	background: rgba(var(--surface), var(--secondary-button-opacity, 0.86));
 	color: rgb(var(--ink));
-	backdrop-filter: blur(8px);
 }
 
 .section-head {
