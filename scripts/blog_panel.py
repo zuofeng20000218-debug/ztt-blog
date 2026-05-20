@@ -42,6 +42,35 @@ class CommandResult:
     output: str
 
 
+@dataclass
+class UploadedFile:
+    filename: str
+    content_type: str
+    data: bytes
+
+
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".avif", ".gif", ".svg"}
+COVER_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".avif"}
+HOME_FILE = SITE_DIR / "src" / "data" / "home.json"
+PUBLIC_UPLOADS_DIR = SITE_DIR / "public" / "uploads"
+DEFAULT_HOME: dict[str, Any] = {
+    "kicker": "个人博客 / 学习记录 / 项目日志",
+    "title": "把折腾过的东西，慢慢写成能回看的记录。",
+    "description": "这里先放学习笔记、建站过程、项目复盘和一些日常想法。内容还在搭建中，现在的文章和图片有不少是占位，后面会逐步替换成真实记录。",
+    "primaryLabel": "看文章",
+    "primaryHref": "/blog/",
+    "secondaryLabel": "看友链",
+    "secondaryHref": "/links/",
+    "panelEyebrow": "当前状态",
+    "panelTitle": "Cloudflare Pages 静态部署",
+    "panelText": "Astro 生成页面，Markdown/MDX 写文章。没有数据库，没有后台服务，适合低成本长期维护。",
+    "heroBackground": "",
+    "showLatestPosts": True,
+    "showTopics": True,
+    "sections": [],
+}
+
+
 def node_modules_ready() -> bool:
     return (SITE_DIR / "node_modules").is_dir()
 
@@ -128,6 +157,78 @@ def slugify(title: str) -> str:
 
 def yaml_quote(value: str) -> str:
     return "'" + value.replace("'", "''") + "'"
+
+
+def parse_checkbox(value: str) -> bool:
+    return value == "on"
+
+
+def safe_filename(filename: str, fallback: str = "image") -> str:
+    name = Path(filename).name.strip()
+    stem = slugify(Path(name).stem or fallback)
+    ext = Path(name).suffix.lower()
+    return f"{stem}{ext}" if ext else stem
+
+
+def unique_path(directory: Path, filename: str) -> Path:
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / filename
+    if not path.exists():
+        return path
+    stem = path.stem
+    suffix = path.suffix
+    for index in range(2, 1000):
+        candidate = directory / f"{stem}-{index}{suffix}"
+        if not candidate.exists():
+            return candidate
+    return directory / f"{stem}-{int(time.time())}{suffix}"
+
+
+def save_public_image(upload: UploadedFile | None, folder: str, fallback: str = "image") -> str | None:
+    if not upload or not upload.filename or not upload.data:
+        return None
+    filename = safe_filename(upload.filename, fallback)
+    if Path(filename).suffix.lower() not in IMAGE_EXTENSIONS:
+        raise ValueError("图片只支持 jpg、jpeg、png、webp、avif、gif、svg。")
+    target_dir = PUBLIC_UPLOADS_DIR / folder
+    target = unique_path(target_dir, filename)
+    target.write_bytes(upload.data)
+    return "/" + str(target.relative_to(SITE_DIR / "public")).replace("\\", "/")
+
+
+def save_asset_image(upload: UploadedFile | None, folder: str, fallback: str = "image") -> tuple[Path, str] | None:
+    if not upload or not upload.filename or not upload.data:
+        return None
+    filename = safe_filename(upload.filename, fallback)
+    if Path(filename).suffix.lower() not in COVER_IMAGE_EXTENSIONS:
+        raise ValueError("封面图只支持 jpg、jpeg、png、webp、avif。")
+    target_dir = ASSETS_DIR / folder
+    target = unique_path(target_dir, filename)
+    target.write_bytes(upload.data)
+    return target, str(target.relative_to(ROOT))
+
+
+def asset_path_for_post(asset: Path, post_path: Path) -> str:
+    return Path(os.path.relpath(asset, post_path.parent)).as_posix()
+
+
+def read_home() -> dict[str, Any]:
+    data = DEFAULT_HOME.copy()
+    if HOME_FILE.exists():
+        loaded = json.loads(HOME_FILE.read_text(encoding="utf-8"))
+        if isinstance(loaded, dict):
+            data.update(loaded)
+    sections = data.get("sections", [])
+    data["sections"] = sections if isinstance(sections, list) else []
+    return data
+
+
+def write_home(data: dict[str, Any]) -> None:
+    HOME_FILE.parent.mkdir(parents=True, exist_ok=True)
+    HOME_FILE.write_text(
+        json.dumps(data, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
 
 def split_post_file(path: Path) -> tuple[dict[str, Any], str]:
@@ -255,6 +356,44 @@ def write_friends(friends: list[dict[str, str]]) -> None:
     )
 
 
+def parse_multipart(body: bytes, content_type: str) -> tuple[dict[str, str], dict[str, UploadedFile]]:
+    marker = "boundary="
+    if marker not in content_type:
+        return {}, {}
+    boundary = content_type.split(marker, 1)[1].strip().strip('"')
+    delimiter = ("--" + boundary).encode("utf-8")
+    form: dict[str, str] = {}
+    files: dict[str, UploadedFile] = {}
+
+    for part in body.split(delimiter):
+        part = part.strip(b"\r\n")
+        if not part or part == b"--" or b"\r\n\r\n" not in part:
+            continue
+        raw_headers, payload = part.split(b"\r\n\r\n", 1)
+        payload = payload.rstrip(b"\r\n")
+        headers = raw_headers.decode("utf-8", errors="replace").split("\r\n")
+        disposition = ""
+        part_type = ""
+        for header in headers:
+            key, _, value = header.partition(":")
+            if key.lower() == "content-disposition":
+                disposition = value.strip()
+            elif key.lower() == "content-type":
+                part_type = value.strip()
+        name_match = re.search(r'name="([^"]+)"', disposition)
+        if not name_match:
+            continue
+        field_name = name_match.group(1)
+        filename_match = re.search(r'filename="([^"]*)"', disposition)
+        if filename_match:
+            filename = filename_match.group(1)
+            if filename and payload:
+                files[field_name] = UploadedFile(filename, part_type, payload)
+        else:
+            form[field_name] = payload.decode("utf-8", errors="replace")
+    return form, files
+
+
 def is_port_open(host: str, port: int) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.settimeout(0.2)
@@ -323,7 +462,7 @@ def publish_post(form: dict[str, str]) -> CommandResult:
     return CommandResult(0, f"已标记为发布：{path.relative_to(ROOT)}")
 
 
-def save_post(form: dict[str, str]) -> CommandResult:
+def save_post(form: dict[str, str], files: dict[str, UploadedFile] | None = None) -> CommandResult:
     path = post_path_from_rel(form.get("file", "").strip())
     if not path:
         return CommandResult(1, "文章路径无效。")
@@ -338,7 +477,14 @@ def save_post(form: dict[str, str]) -> CommandResult:
     hero_image = form.get("heroImage", "").strip()
     body = form.get("body", "").replace("\r\n", "\n").strip()
     tags = [tag.strip() for tag in re.split(r"[,，]", form.get("tags", "")) if tag.strip()]
-    draft = form.get("draft", "") == "on"
+    draft = parse_checkbox(form.get("draft", ""))
+
+    try:
+        cover_upload = save_asset_image((files or {}).get("heroImageFile"), "covers", slugify(title))
+    except ValueError as exc:
+        return CommandResult(1, str(exc))
+    if cover_upload:
+        hero_image = asset_path_for_post(cover_upload[0], path)
 
     lines = [
         "---",
@@ -358,13 +504,91 @@ def save_post(form: dict[str, str]) -> CommandResult:
     return CommandResult(0, f"已保存文章：{path.relative_to(ROOT)}")
 
 
-def add_friend(form: dict[str, str]) -> CommandResult:
+def insert_post_image(form: dict[str, str], files: dict[str, UploadedFile] | None = None) -> CommandResult:
+    path = post_path_from_rel(form.get("file", "").strip())
+    if not path:
+        return CommandResult(1, "请选择要插入图片的文章。")
+
+    upload = (files or {}).get("image")
+    if not upload or not upload.filename:
+        return CommandResult(1, "请选择一张图片。")
+
+    alt = form.get("alt", "").strip() or Path(upload.filename).stem
+    try:
+        image_path = save_public_image(upload, "posts", slugify(alt))
+    except ValueError as exc:
+        return CommandResult(1, str(exc))
+    if not image_path:
+        return CommandResult(1, "图片保存失败。")
+
+    markdown = f"\n\n![{alt}]({image_path})\n"
+    with path.open("a", encoding="utf-8") as file:
+        file.write(markdown)
+    return CommandResult(0, f"已把图片插入到文章末尾：{image_path}\n\nMarkdown：![{alt}]({image_path})")
+
+
+def update_home_settings(form: dict[str, str], files: dict[str, UploadedFile] | None = None) -> CommandResult:
+    home = read_home()
+    for key in [
+        "kicker",
+        "title",
+        "description",
+        "primaryLabel",
+        "primaryHref",
+        "secondaryLabel",
+        "secondaryHref",
+        "panelEyebrow",
+        "panelTitle",
+        "panelText",
+    ]:
+        home[key] = form.get(key, "").strip()
+    home["showLatestPosts"] = parse_checkbox(form.get("showLatestPosts", ""))
+    home["showTopics"] = parse_checkbox(form.get("showTopics", ""))
+
+    try:
+        background = save_public_image((files or {}).get("heroBackgroundFile"), "home", "home-background")
+    except ValueError as exc:
+        return CommandResult(1, str(exc))
+    if background:
+        home["heroBackground"] = background
+    elif parse_checkbox(form.get("clearHeroBackground", "")):
+        home["heroBackground"] = ""
+    else:
+        home["heroBackground"] = form.get("heroBackground", "").strip()
+
+    sections = home.get("sections", [])
+    current = sections[0] if sections and isinstance(sections[0], dict) else {}
+    if parse_checkbox(form.get("deleteSection", "")):
+        home["sections"] = []
+    else:
+        section = {
+            "id": current.get("id", "custom-section"),
+            "enabled": parse_checkbox(form.get("sectionEnabled", "")),
+            "eyebrow": form.get("sectionEyebrow", "").strip(),
+            "title": form.get("sectionTitle", "").strip(),
+            "body": form.get("sectionBody", "").strip(),
+            "linkLabel": form.get("sectionLinkLabel", "").strip(),
+            "linkHref": form.get("sectionLinkHref", "").strip(),
+        }
+        home["sections"] = [section] if section["title"] or section["body"] else []
+    write_home(home)
+    return CommandResult(0, "首页设置已保存。启动预览或构建后就能看到效果。")
+
+
+def add_friend(form: dict[str, str], files: dict[str, UploadedFile] | None = None) -> CommandResult:
     name = form.get("name", "").strip()
     url = form.get("url", "").strip()
     description = form.get("description", "").strip()
     avatar = form.get("avatar", "").strip() or "/favicon.svg"
     if not name or not url:
         return CommandResult(1, "友链名称和链接必填。")
+
+    try:
+        uploaded_avatar = save_public_image((files or {}).get("avatarFile"), "avatars", slugify(name))
+    except ValueError as exc:
+        return CommandResult(1, str(exc))
+    if uploaded_avatar:
+        avatar = uploaded_avatar
 
     friends = read_friends()
     friends.append(
@@ -454,6 +678,8 @@ def html_escape(value: Any) -> str:
 def render_page(message: CommandResult | None = None, edit_file: str = "") -> str:
     posts = list_posts()
     friends = read_friends()
+    home = read_home()
+    home_section = home["sections"][0] if home.get("sections") else {}
     git_status = get_git_status()
     preview_running = is_port_open(PREVIEW_HOST, PREVIEW_PORT)
     deps_ready = node_modules_ready()
@@ -506,7 +732,7 @@ def render_page(message: CommandResult | None = None, edit_file: str = "") -> st
         edit_form_html = f"""
       <div class="panel wide" id="edit-post">
         <h2>编辑文章</h2>
-        <form method="post" action="/action/save_post">
+        <form method="post" action="/action/save_post" enctype="multipart/form-data">
           <input type="hidden" name="file" value="{html_escape(edit_post['file'])}">
           <label>标题</label>
           <input name="title" required value="{html_escape(edit_post['title'])}">
@@ -520,6 +746,8 @@ def render_page(message: CommandResult | None = None, edit_file: str = "") -> st
           <input name="updatedDate" type="date" value="{html_escape(edit_post['updatedDate'])}">
           <label>封面图路径</label>
           <input name="heroImage" value="{html_escape(edit_post['heroImage'])}">
+          <label>上传新封面图（jpg、png、webp、avif）</label>
+          <input name="heroImageFile" type="file" accept=".jpg,.jpeg,.png,.webp,.avif,image/jpeg,image/png,image/webp,image/avif">
           <label><input style="width:auto" type="checkbox" name="draft" {'checked' if edit_post['draft'] else ''}> 保存为草稿</label>
           <label>正文</label>
           <textarea name="body" class="body-editor">{html_escape(edit_post['body'])}</textarea>
@@ -541,6 +769,10 @@ def render_page(message: CommandResult | None = None, edit_file: str = "") -> st
           <td><a class="button ghost" href="/?edit={quote(post['file'])}#edit-post">编辑</a></td>
         </tr>
         """
+        for post in posts
+    )
+    image_post_options = "\n".join(
+        f'<option value="{html_escape(post["file"])}">{html_escape(post["title"])} ({html_escape(post["name"])})</option>'
         for post in posts
     )
 
@@ -570,6 +802,7 @@ def render_page(message: CommandResult | None = None, edit_file: str = "") -> st
     input, select, textarea {{ width:100%; border:1px solid var(--line); border-radius:8px; padding:10px 12px; font:inherit; background:#fff; }}
     textarea {{ min-height:84px; resize:vertical; }}
     .body-editor {{ min-height:420px; font-family:Consolas, "Microsoft YaHei", monospace; line-height:1.55; }}
+    .hint {{ display:block; margin-top:4px; color:var(--muted); font-size:.86rem; }}
     button, .button {{ display:inline-flex; align-items:center; justify-content:center; min-height:38px; border:0; border-radius:8px; background:var(--accent); color:#fff; padding:8px 14px; font-weight:700; text-decoration:none; cursor:pointer; }}
     button.secondary, .button.secondary {{ background:#111827; }}
     button.ghost, .button.ghost {{ background:#eef2ff; color:#1e40af; min-height:32px; }}
@@ -641,6 +874,66 @@ def render_page(message: CommandResult | None = None, edit_file: str = "") -> st
         </form>
       </div>
       {edit_form_html}
+      <div class="panel wide" id="home-design">
+        <h2>首页设计</h2>
+        <form method="post" action="/action/update_home" enctype="multipart/form-data">
+          <label>首页小标题</label>
+          <input name="kicker" value="{html_escape(home.get('kicker', ''))}">
+          <label>首页大标题</label>
+          <input name="title" value="{html_escape(home.get('title', ''))}">
+          <label>首页说明</label>
+          <textarea name="description">{html_escape(home.get('description', ''))}</textarea>
+          <label>主按钮文字</label>
+          <input name="primaryLabel" value="{html_escape(home.get('primaryLabel', ''))}">
+          <label>主按钮链接</label>
+          <input name="primaryHref" value="{html_escape(home.get('primaryHref', ''))}">
+          <label>副按钮文字</label>
+          <input name="secondaryLabel" value="{html_escape(home.get('secondaryLabel', ''))}">
+          <label>副按钮链接</label>
+          <input name="secondaryHref" value="{html_escape(home.get('secondaryHref', ''))}">
+          <label>右侧信息小标题</label>
+          <input name="panelEyebrow" value="{html_escape(home.get('panelEyebrow', ''))}">
+          <label>右侧信息标题</label>
+          <input name="panelTitle" value="{html_escape(home.get('panelTitle', ''))}">
+          <label>右侧信息说明</label>
+          <textarea name="panelText">{html_escape(home.get('panelText', ''))}</textarea>
+          <label>当前首页背景图路径</label>
+          <input name="heroBackground" value="{html_escape(home.get('heroBackground', ''))}" placeholder="/uploads/home/background.webp">
+          <label>上传首页背景图（jpg、png、webp、avif、gif、svg）</label>
+          <input name="heroBackgroundFile" type="file" accept=".jpg,.jpeg,.png,.webp,.avif,.gif,.svg,image/*">
+          <label><input style="width:auto" type="checkbox" name="clearHeroBackground"> 清空首页背景图</label>
+          <label><input style="width:auto" type="checkbox" name="showLatestPosts" {'checked' if home.get('showLatestPosts') else ''}> 显示“最近文章”栏目</label>
+          <label><input style="width:auto" type="checkbox" name="showTopics" {'checked' if home.get('showTopics') else ''}> 显示“正在整理的主题”栏目</label>
+          <h3>自定义首页栏目</h3>
+          <label><input style="width:auto" type="checkbox" name="sectionEnabled" {'checked' if home_section.get('enabled') else ''}> 显示这个栏目</label>
+          <label><input style="width:auto" type="checkbox" name="deleteSection"> 删除这个自定义栏目</label>
+          <label>栏目小标题</label>
+          <input name="sectionEyebrow" value="{html_escape(home_section.get('eyebrow', ''))}" placeholder="Now">
+          <label>栏目标题</label>
+          <input name="sectionTitle" value="{html_escape(home_section.get('title', ''))}" placeholder="正在整理的方向">
+          <label>栏目内容</label>
+          <textarea name="sectionBody">{html_escape(home_section.get('body', ''))}</textarea>
+          <label>栏目链接文字</label>
+          <input name="sectionLinkLabel" value="{html_escape(home_section.get('linkLabel', ''))}" placeholder="了解更多">
+          <label>栏目链接</label>
+          <input name="sectionLinkHref" value="{html_escape(home_section.get('linkHref', ''))}" placeholder="/about/">
+          <span class="hint">背景图会保存到 site/public/uploads/home/，支持 jpg、jpeg、png、webp、avif、gif、svg；更推荐 webp/jpg/png。</span>
+          <div class="actions"><button type="submit">保存首页设置</button></div>
+        </form>
+      </div>
+      <div class="panel">
+        <h2>给文章插入图片</h2>
+        <form method="post" action="/action/insert_post_image" enctype="multipart/form-data">
+          <label>选择文章</label>
+          <select name="file" {'disabled' if not posts else ''}>{image_post_options or '<option>暂无文章</option>'}</select>
+          <label>图片说明（会作为 alt 文本）</label>
+          <input name="alt" placeholder="例如：控制面板截图">
+          <label>选择图片（jpg、png、webp、avif、gif、svg）</label>
+          <input name="image" required type="file" accept=".jpg,.jpeg,.png,.webp,.avif,.gif,.svg,image/*">
+          <span class="hint">保存后会自动把 Markdown 图片语法追加到文章末尾，你也可以打开文章编辑区，把那一行移动到正文中想放的位置。</span>
+          <div class="actions"><button type="submit" {'disabled' if not posts else ''}>上传并插入</button></div>
+        </form>
+      </div>
       <div class="panel">
         <h2>首次准备</h2>
         <p class="muted">换电脑下载仓库后，先检查环境，再安装依赖。密钥仍然只保存在本机，不会上传到 GitHub。</p>
@@ -669,7 +962,7 @@ def render_page(message: CommandResult | None = None, edit_file: str = "") -> st
       </div>
       <div class="panel">
         <h2>添加友链</h2>
-        <form method="post" action="/action/add_friend">
+        <form method="post" action="/action/add_friend" enctype="multipart/form-data">
           <label>名称</label>
           <input name="name" required>
           <label>链接</label>
@@ -678,6 +971,9 @@ def render_page(message: CommandResult | None = None, edit_file: str = "") -> st
           <input name="description">
           <label>头像</label>
           <input name="avatar" placeholder="/favicon.svg 或 https://...">
+          <label>上传头像（推荐本地保存，避免外链失效）</label>
+          <input name="avatarFile" type="file" accept=".jpg,.jpeg,.png,.webp,.avif,.gif,.svg,image/*">
+          <span class="hint">上传头像会保存到 site/public/uploads/avatars/，友链页会自动使用 /favicon.svg 作为加载失败兜底。</span>
           <div class="actions"><button type="submit">添加友链</button></div>
         </form>
       </div>
@@ -724,16 +1020,24 @@ class BlogPanelHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
         length = int(self.headers.get("Content-Length", "0"))
-        body = self.rfile.read(length).decode("utf-8", errors="replace")
-        form = {key: values[-1] for key, values in parse_qs(body, keep_blank_values=True).items()}
+        content_type = self.headers.get("Content-Type", "")
+        raw_body = self.rfile.read(length)
+        files: dict[str, UploadedFile] = {}
+        if content_type.startswith("multipart/form-data"):
+            form, files = parse_multipart(raw_body, content_type)
+        else:
+            body = raw_body.decode("utf-8", errors="replace")
+            form = {key: values[-1] for key, values in parse_qs(body, keep_blank_values=True).items()}
 
         actions = {
             "/action/check_requirements": lambda _: check_requirements(),
             "/action/install_dependencies": lambda _: install_dependencies(),
             "/action/create_post": create_post,
             "/action/publish_post": publish_post,
-            "/action/save_post": save_post,
-            "/action/add_friend": add_friend,
+            "/action/save_post": lambda data: save_post(data, files),
+            "/action/insert_post_image": lambda data: insert_post_image(data, files),
+            "/action/update_home": lambda data: update_home_settings(data, files),
+            "/action/add_friend": lambda data: add_friend(data, files),
             "/action/delete_friend": delete_friend,
             "/action/start_preview": lambda _: start_preview(),
             "/action/stop_preview": lambda _: stop_preview(),
@@ -767,8 +1071,12 @@ def main() -> int:
 
     POSTS_DIR.mkdir(parents=True, exist_ok=True)
     FRIENDS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    PUBLIC_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+    HOME_FILE.parent.mkdir(parents=True, exist_ok=True)
     if not FRIENDS_FILE.exists():
         write_friends([])
+    if not HOME_FILE.exists():
+        write_home(DEFAULT_HOME)
 
     server = ThreadingHTTPServer((PANEL_HOST, args.port), BlogPanelHandler)
     url = f"http://{PANEL_HOST}:{args.port}/"

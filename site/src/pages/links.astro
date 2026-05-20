@@ -4,6 +4,8 @@ import Footer from '../components/Footer.astro';
 import Header from '../components/Header.astro';
 import friends from '../data/friends.json';
 import { SITE_TITLE, SITE_URL } from '../consts';
+
+const fallbackAvatar = '/favicon.svg';
 ---
 
 <!doctype html>
@@ -36,7 +38,12 @@ import { SITE_TITLE, SITE_URL } from '../consts';
 				{
 					friends.map((friend) => (
 						<a class="link-card" href={friend.url} target="_blank" rel="noopener noreferrer">
-							<img src={friend.avatar} alt={`${friend.name} 头像`} loading="lazy" />
+							<img
+								src={friend.avatar || fallbackAvatar}
+								alt={`${friend.name} 头像`}
+								loading="lazy"
+								onerror={`this.onerror=null;this.src='${fallbackAvatar}';`}
+							/>
 							<span>
 								<strong>{friend.name}</strong>
 								<span class="muted">{friend.description}</span>

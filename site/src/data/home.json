@@ -1,0 +1,26 @@
+{
+  "kicker": "个人博客 / 学习记录 / 项目日志",
+  "title": "把折腾过的东西，慢慢写成能回看的记录。",
+  "description": "这里先放学习笔记、建站过程、项目复盘和一些日常想法。内容还在搭建中，现在的文章和图片有不少是占位，后面会逐步替换成真实记录。",
+  "primaryLabel": "看文章",
+  "primaryHref": "/blog/",
+  "secondaryLabel": "看友链",
+  "secondaryHref": "/links/",
+  "panelEyebrow": "当前状态",
+  "panelTitle": "Cloudflare Pages 静态部署",
+  "panelText": "Astro 生成页面，Markdown/MDX 写文章。没有数据库，没有后台服务，适合低成本长期维护。",
+  "heroBackground": "",
+  "showLatestPosts": true,
+  "showTopics": true,
+  "sections": [
+    {
+      "id": "building-log",
+      "enabled": true,
+      "eyebrow": "Now",
+      "title": "正在整理的方向",
+      "body": "这里可以放一个自定义首页栏目，比如最近在做的项目、想长期维护的主题，或者给访客看的说明。",
+      "linkLabel": "了解更多",
+      "linkHref": "/about/"
+    }
+  ]
+}

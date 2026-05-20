@@ -40,8 +40,11 @@ python .\scripts\blog_panel.py
 - 安装/更新依赖：在 `site/` 里执行 `npm ci` 或 `npm install`。
 - 新建文章：自动生成 Markdown/MDX 文件和 frontmatter。
 - 编辑已有文章：修改已发布文章或草稿的标题、摘要、标签、日期、封面、草稿状态和正文。
+- 首页设计：修改首页文案、背景图、按钮和栏目显示状态。
+- 给文章插入图片：上传图片并自动追加 Markdown 图片语法。
 - 发布草稿：把 `draft: true` 改成 `draft: false`。
 - 添加友链：写入 `site/src/data/friends.json`。
+- 上传友链头像：把头像保存到仓库里的 `site/public/uploads/avatars/`。
 - 删除友链：从 `friends.json` 移除对应链接。
 - 启动预览：打开 Astro 本地预览服务。
 - 停止预览：停止由面板启动的预览服务。
@@ -57,7 +60,9 @@ python .\scripts\blog_panel.py
 - `scripts/update_blog.py`
 - `docs/blog-control-panel.md`
 - `site/src/data/friends.json`
+- `site/src/data/home.json`
 - `site/src/content/blog/` 里的文章
+- `site/public/uploads/` 里的上传图片
 - `site/src/assets/` 里的图片
 - `site/package.json` 和 `site/package-lock.json`
 
@@ -82,6 +87,34 @@ draft: true
 
 已发布文章也可以在面板里重新编辑。保存后本地 Markdown/MDX 文件会被更新，确认效果后再点击“构建并推送”。
 
+## 图片
+
+正文插图推荐使用面板里的“给文章插入图片”。它会把图片保存到：
+
+```text
+site/public/uploads/posts/
+```
+
+并自动在文章末尾追加：
+
+```md
+![图片说明](/uploads/posts/example.webp)
+```
+
+如果图片要放在正文中间，保存后打开“编辑已有文章”，把这行移动到合适的位置即可。
+
+首页背景图和正文插图支持 `jpg`、`jpeg`、`png`、`webp`、`avif`、`gif`、`svg`。文章封面图用于 Astro 图片优化，推荐使用 `jpg`、`jpeg`、`png`、`webp`、`avif`。
+
+## 首页
+
+首页配置保存在：
+
+```text
+site/src/data/home.json
+```
+
+日常建议直接用控制面板修改：可以改首页标题、说明、两个按钮、右侧信息、背景图，还可以打开或关闭“最近文章”“正在整理的主题”，并新增、隐藏或删除一个自定义首页栏目。
+
 ## 友链数据
 
 友链保存在：
@@ -102,6 +135,8 @@ site/src/data/friends.json
   }
 ]
 ```
+
+头像可以填远程链接，也可以在控制面板上传本地图片。推荐上传本地图片，避免对方网站头像改地址或加载失败。友链页已经设置兜底头像，加载失败时会显示 `/favicon.svg`。
 
 ## GitHub 密钥
 

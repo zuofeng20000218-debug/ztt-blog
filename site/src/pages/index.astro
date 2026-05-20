@@ -1,17 +1,19 @@
 ---
 import { Image } from 'astro:assets';
-import { getCollection } from 'astro:content';
 import BaseHead from '../components/BaseHead.astro';
 import Footer from '../components/Footer.astro';
 import FormattedDate from '../components/FormattedDate.astro';
 import Header from '../components/Header.astro';
 import HeroImage from '../assets/blog-placeholder-2.jpg';
+import home from '../data/home.json';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../consts';
 import { getPublishedPosts } from '../utils/posts';
 
 const posts = await getPublishedPosts();
 const latestPosts = posts.slice(0, 3);
 const allTags = [...new Set(posts.flatMap((post) => post.data.tags))].slice(0, 8);
+const homeStyle = home.heroBackground ? `--hero-bg: url('${home.heroBackground}')` : '';
+const customSections = home.sections?.filter((section) => section.enabled) ?? [];
 ---
 
 <!doctype html>
@@ -22,74 +24,85 @@ const allTags = [...new Set(posts.flatMap((post) => post.data.tags))].slice(0, 8
 	<body>
 		<Header />
 		<main>
-			<section class="hero">
+			<section class:list={['hero', { 'has-bg': home.heroBackground }]} style={homeStyle}>
 				<div>
-					<p class="hero-kicker">个人博客 / 学习记录 / 项目日志</p>
-					<h1>把折腾过的东西，慢慢写成能回看的记录。</h1>
-					<p>
-						这里先放学习笔记、建站过程、项目复盘和一些日常想法。内容还在搭建中，
-						现在的文章和图片有不少是占位，后面会逐步替换成真实记录。
-					</p>
+					<p class="hero-kicker">{home.kicker}</p>
+					<h1>{home.title}</h1>
+					<p>{home.description}</p>
 					<div class="actions">
-						<a class="button" href="/blog/">看文章</a>
-						<a class="button secondary" href="/links/">看友链</a>
+						<a class="button" href={home.primaryHref}>{home.primaryLabel}</a>
+						<a class="button secondary" href={home.secondaryHref}>{home.secondaryLabel}</a>
 					</div>
 				</div>
 				<div class="hero-panel">
-					<p class="eyebrow">当前状态</p>
-					<h2>Cloudflare Pages 静态部署</h2>
-					<p class="muted">
-						Astro 生成页面，Markdown/MDX 写文章。没有数据库，没有后台服务，
-						适合低成本长期维护。
-					</p>
+					<p class="eyebrow">{home.panelEyebrow}</p>
+					<h2>{home.panelTitle}</h2>
+					<p class="muted">{home.panelText}</p>
 				</div>
 			</section>
 
-			<section>
-				<div class="section-head">
-					<div>
-						<p class="eyebrow">Latest</p>
-						<h2>最近文章</h2>
+			{home.showLatestPosts && (
+				<section>
+					<div class="section-head">
+						<div>
+							<p class="eyebrow">Latest</p>
+							<h2>最近文章</h2>
+						</div>
+						<a href="/blog/">全部文章</a>
 					</div>
-					<a href="/blog/">全部文章</a>
-				</div>
-				<div class="grid">
-					{
-						latestPosts.map((post) => (
-							<a class="post-card" href={`/blog/${post.id}/`}>
-								{post.data.heroImage && (
-									<Image width={720} height={405} src={post.data.heroImage} alt={`${post.data.title} 封面`} />
-								)}
-								<div>
-									<p class="post-meta">
-										<FormattedDate date={post.data.pubDate} />
-									</p>
-									<h3>{post.data.title}</h3>
-									<p class="muted">{post.data.description}</p>
-									<div class="tag-list">
-										{post.data.tags.slice(0, 3).map((tag) => (
-											<span class="tag-pill">{tag}</span>
-										))}
+					<div class="grid">
+						{
+							latestPosts.map((post) => (
+								<a class="post-card" href={`/blog/${post.id}/`}>
+									{post.data.heroImage && (
+										<Image width={720} height={405} src={post.data.heroImage} alt={`${post.data.title} 封面`} />
+									)}
+									<div>
+										<p class="post-meta">
+											<FormattedDate date={post.data.pubDate} />
+										</p>
+										<h3>{post.data.title}</h3>
+										<p class="muted">{post.data.description}</p>
+										<div class="tag-list">
+											{post.data.tags.slice(0, 3).map((tag) => (
+												<span class="tag-pill">{tag}</span>
+											))}
+										</div>
 									</div>
-								</div>
-							</a>
-						))
-					}
-				</div>
-			</section>
-
-			<section>
-				<div class="section-head">
-					<div>
-						<p class="eyebrow">Topics</p>
-						<h2>正在整理的主题</h2>
+								</a>
+							))
+						}
 					</div>
-					<a href="/tags/">全部标签</a>
-				</div>
-				<div class="tag-list">
-					{allTags.map((tag) => <a class="tag-pill" href={`/tags/${encodeURIComponent(tag)}/`}>{tag}</a>)}
-				</div>
-			</section>
+				</section>
+			)}
+
+			{customSections.map((section) => (
+				<section class="custom-section">
+					<div class="section-head">
+						<div>
+							<p class="eyebrow">{section.eyebrow}</p>
+							<h2>{section.title}</h2>
+						</div>
+						{section.linkHref && section.linkLabel && <a href={section.linkHref}>{section.linkLabel}</a>}
+					</div>
+					<p class="page-lede">{section.body}</p>
+				</section>
+			))}
+
+			{home.showTopics && (
+				<section>
+					<div class="section-head">
+						<div>
+							<p class="eyebrow">Topics</p>
+							<h2>正在整理的主题</h2>
+						</div>
+						<a href="/tags/">全部标签</a>
+					</div>
+					<div class="tag-list">
+						{allTags.map((tag) => <a class="tag-pill" href={`/tags/${encodeURIComponent(tag)}/`}>{tag}</a>)}
+					</div>
+				</section>
+			)}
 		</main>
 		<Footer />
 	</body>

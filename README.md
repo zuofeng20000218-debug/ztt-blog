@@ -35,8 +35,11 @@ http://127.0.0.1:8765/
 
 - 新建 Markdown/MDX 文章草稿
 - 编辑已发布文章或草稿
+- 维护首页文案、背景图和首页栏目开关
+- 上传图片并插入文章正文
 - 发布草稿
 - 添加或删除友链
+- 上传友链头像，并在头像加载失败时自动使用站点图标兜底
 - 启动和停止本地预览
 - 运行构建检查
 - 构建通过后提交并推送到 GitHub
@@ -71,10 +74,11 @@ D:\Blog
 │  └─ update_blog.py              # 构建、提交、推送
 └─ site/
    ├─ src/
-   │  ├─ assets/                  # 图片资源
+   │  ├─ assets/                  # 文章封面等构建期图片资源
    │  ├─ components/              # 页面组件
    │  ├─ content/blog/            # 文章
    │  ├─ data/friends.json        # 友链数据
+   │  ├─ data/home.json           # 首页配置
    │  ├─ layouts/                 # 页面布局
    │  ├─ pages/                   # 页面路由
    │  ├─ styles/                  # 全局样式
@@ -110,6 +114,14 @@ heroImage: "../../assets/blog-placeholder-1.jpg"
 
 `draft: true` 的文章不会出现在首页、列表、标签、归档、搜索和 RSS 中。写完后在控制面板里发布即可。已发布文章也可以在控制面板里重新打开编辑。
 
+正文里放图片时，推荐用控制面板的“给文章插入图片”。图片会保存到 `site/public/uploads/posts/`，面板会自动生成：
+
+```md
+![图片说明](/uploads/posts/example.webp)
+```
+
+首页背景图和文章正文图支持 `jpg`、`jpeg`、`png`、`webp`、`avif`、`gif`、`svg`。文章封面图走 Astro 图片优化，更推荐 `jpg`、`jpeg`、`png`、`webp`、`avif`。
+
 ## 友链
 
 友链数据在：
@@ -119,6 +131,8 @@ site/src/data/friends.json
 ```
 
 可以用控制面板维护，也可以手动编辑 JSON。
+
+友链头像推荐通过控制面板上传到 `site/public/uploads/avatars/`，不要只依赖别人网站的头像外链。友链页已经加了加载失败兜底，头像失效时会自动显示 `/favicon.svg`。
 
 ## 不要上传的文件
 
