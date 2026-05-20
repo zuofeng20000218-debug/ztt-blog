@@ -19,7 +19,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote, urlparse
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -130,6 +130,37 @@ def yaml_quote(value: str) -> str:
     return "'" + value.replace("'", "''") + "'"
 
 
+def split_post_file(path: Path) -> tuple[dict[str, Any], str]:
+    try:
+        text = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        text = path.read_text(encoding="utf-8", errors="replace")
+
+    if not text.startswith("---"):
+        return {}, text
+
+    end = text.find("\n---", 3)
+    if end == -1:
+        return {}, text
+
+    frontmatter = parse_frontmatter(path)
+    body = text[end + len("\n---") :].lstrip("\r\n")
+    return frontmatter, body
+
+
+def post_path_from_rel(rel_file: str) -> Path | None:
+    if not rel_file:
+        return None
+    path = (ROOT / rel_file).resolve()
+    try:
+        path.relative_to(POSTS_DIR.resolve())
+    except ValueError:
+        return None
+    if not path.is_file() or path.suffix.lower() not in {".md", ".mdx"}:
+        return None
+    return path
+
+
 def parse_frontmatter(path: Path) -> dict[str, Any]:
     try:
         text = path.read_text(encoding="utf-8")
@@ -182,6 +213,32 @@ def list_posts() -> list[dict[str, Any]]:
             }
         )
     return sorted(posts, key=lambda item: str(item["date"]), reverse=True)
+
+
+def get_post_for_edit(rel_file: str) -> dict[str, Any] | None:
+    path = post_path_from_rel(rel_file)
+    if not path:
+        return None
+
+    data, body = split_post_file(path)
+    tags = data.get("tags", [])
+    if isinstance(tags, str):
+        tags = [tags]
+    if not isinstance(tags, list):
+        tags = []
+
+    return {
+        "file": str(path.relative_to(ROOT)),
+        "name": path.name,
+        "title": data.get("title", path.stem),
+        "description": data.get("description", ""),
+        "tags": ", ".join(str(tag) for tag in tags),
+        "draft": bool(data.get("draft", False)),
+        "pubDate": data.get("pubDate", ""),
+        "updatedDate": data.get("updatedDate", ""),
+        "heroImage": data.get("heroImage", ""),
+        "body": body,
+    }
 
 
 def read_friends() -> list[dict[str, str]]:
@@ -264,6 +321,41 @@ def publish_post(form: dict[str, str]) -> CommandResult:
         text = text.replace("---\n", "---\ndraft: false\n", 1)
     path.write_text(text, encoding="utf-8")
     return CommandResult(0, f"已标记为发布：{path.relative_to(ROOT)}")
+
+
+def save_post(form: dict[str, str]) -> CommandResult:
+    path = post_path_from_rel(form.get("file", "").strip())
+    if not path:
+        return CommandResult(1, "文章路径无效。")
+
+    title = form.get("title", "").strip()
+    if not title:
+        return CommandResult(1, "请填写文章标题。")
+
+    description = form.get("description", "").strip()
+    pub_date = form.get("pubDate", "").strip() or date.today().isoformat()
+    updated_date = form.get("updatedDate", "").strip()
+    hero_image = form.get("heroImage", "").strip()
+    body = form.get("body", "").replace("\r\n", "\n").strip()
+    tags = [tag.strip() for tag in re.split(r"[,，]", form.get("tags", "")) if tag.strip()]
+    draft = form.get("draft", "") == "on"
+
+    lines = [
+        "---",
+        f"title: {yaml_quote(title)}",
+        f"description: {yaml_quote(description)}",
+        "tags: [" + ", ".join(yaml_quote(tag) for tag in tags) + "]",
+        f"draft: {'true' if draft else 'false'}",
+        f"pubDate: {yaml_quote(pub_date)}",
+    ]
+    if updated_date:
+        lines.append(f"updatedDate: {yaml_quote(updated_date)}")
+    if hero_image:
+        lines.append(f"heroImage: {yaml_quote(hero_image)}")
+    lines.extend(["---", "", body, ""])
+
+    path.write_text("\n".join(lines), encoding="utf-8")
+    return CommandResult(0, f"已保存文章：{path.relative_to(ROOT)}")
 
 
 def add_friend(form: dict[str, str]) -> CommandResult:
@@ -359,13 +451,14 @@ def html_escape(value: Any) -> str:
     return html.escape(str(value), quote=True)
 
 
-def render_page(message: CommandResult | None = None) -> str:
+def render_page(message: CommandResult | None = None, edit_file: str = "") -> str:
     posts = list_posts()
     friends = read_friends()
     git_status = get_git_status()
     preview_running = is_port_open(PREVIEW_HOST, PREVIEW_PORT)
     deps_ready = node_modules_ready()
     drafts = [post for post in posts if post["draft"]]
+    edit_post = get_post_for_edit(edit_file)
 
     message_html = ""
     if message:
@@ -380,6 +473,10 @@ def render_page(message: CommandResult | None = None) -> str:
     post_options = "\n".join(
         f'<option value="{html_escape(post["file"])}">{html_escape(post["title"])} ({html_escape(post["name"])})</option>'
         for post in drafts
+    )
+    edit_options = "\n".join(
+        f'<option value="{html_escape(post["file"])}" {"selected" if edit_post and post["file"] == edit_post["file"] else ""}>{html_escape(post["title"])} ({html_escape(post["name"])})</option>'
+        for post in posts
     )
     friend_rows = "\n".join(
         f"""
@@ -397,6 +494,42 @@ def render_page(message: CommandResult | None = None) -> str:
         """
         for friend in friends
     )
+    edit_form_html = ""
+    if edit_file and not edit_post:
+        edit_form_html = """
+      <div class="panel wide result bad">
+        <h2>编辑文章</h2>
+        <pre>没有找到要编辑的文章。</pre>
+      </div>
+        """
+    elif edit_post:
+        edit_form_html = f"""
+      <div class="panel wide" id="edit-post">
+        <h2>编辑文章</h2>
+        <form method="post" action="/action/save_post">
+          <input type="hidden" name="file" value="{html_escape(edit_post['file'])}">
+          <label>标题</label>
+          <input name="title" required value="{html_escape(edit_post['title'])}">
+          <label>摘要</label>
+          <textarea name="description">{html_escape(edit_post['description'])}</textarea>
+          <label>标签（用逗号分隔）</label>
+          <input name="tags" value="{html_escape(edit_post['tags'])}">
+          <label>发布日期</label>
+          <input name="pubDate" type="date" value="{html_escape(edit_post['pubDate'])}">
+          <label>更新日期（可选）</label>
+          <input name="updatedDate" type="date" value="{html_escape(edit_post['updatedDate'])}">
+          <label>封面图路径</label>
+          <input name="heroImage" value="{html_escape(edit_post['heroImage'])}">
+          <label><input style="width:auto" type="checkbox" name="draft" {'checked' if edit_post['draft'] else ''}> 保存为草稿</label>
+          <label>正文</label>
+          <textarea name="body" class="body-editor">{html_escape(edit_post['body'])}</textarea>
+          <div class="actions">
+            <button type="submit">保存文章</button>
+            <a class="button secondary" href="/">关闭编辑</a>
+          </div>
+        </form>
+      </div>
+        """
     post_rows = "\n".join(
         f"""
         <tr>
@@ -405,6 +538,7 @@ def render_page(message: CommandResult | None = None) -> str:
           <td>{html_escape(post['date'])}</td>
           <td>{html_escape(', '.join(post['tags']))}</td>
           <td>{html_escape(post['file'])}</td>
+          <td><a class="button ghost" href="/?edit={quote(post['file'])}#edit-post">编辑</a></td>
         </tr>
         """
         for post in posts
@@ -435,9 +569,10 @@ def render_page(message: CommandResult | None = None) -> str:
     label {{ display:block; color:var(--muted); font-size:.92rem; margin:10px 0 4px; }}
     input, select, textarea {{ width:100%; border:1px solid var(--line); border-radius:8px; padding:10px 12px; font:inherit; background:#fff; }}
     textarea {{ min-height:84px; resize:vertical; }}
+    .body-editor {{ min-height:420px; font-family:Consolas, "Microsoft YaHei", monospace; line-height:1.55; }}
     button, .button {{ display:inline-flex; align-items:center; justify-content:center; min-height:38px; border:0; border-radius:8px; background:var(--accent); color:#fff; padding:8px 14px; font-weight:700; text-decoration:none; cursor:pointer; }}
     button.secondary, .button.secondary {{ background:#111827; }}
-    button.ghost {{ background:#eef2ff; color:#1e40af; min-height:32px; }}
+    button.ghost, .button.ghost {{ background:#eef2ff; color:#1e40af; min-height:32px; }}
     .actions {{ display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }}
     pre {{ white-space:pre-wrap; overflow:auto; background:#0f172a; color:#e5e7eb; border-radius:8px; padding:12px; max-height:360px; }}
     .result.ok {{ border-color:#86efac; }}
@@ -498,6 +633,15 @@ def render_page(message: CommandResult | None = None) -> str:
         </form>
       </div>
       <div class="panel">
+        <h2>编辑已有文章</h2>
+        <form method="get" action="/">
+          <label>选择文章</label>
+          <select name="edit" {'disabled' if not posts else ''}>{edit_options or '<option>暂无文章</option>'}</select>
+          <div class="actions"><button type="submit" {'disabled' if not posts else ''}>打开编辑</button></div>
+        </form>
+      </div>
+      {edit_form_html}
+      <div class="panel">
         <h2>首次准备</h2>
         <p class="muted">换电脑下载仓库后，先检查环境，再安装依赖。密钥仍然只保存在本机，不会上传到 GitHub。</p>
         <div class="actions">
@@ -544,7 +688,7 @@ def render_page(message: CommandResult | None = None) -> str:
       <div class="panel wide">
         <h2>文章列表</h2>
         <table>
-          <thead><tr><th>状态</th><th>标题</th><th>日期</th><th>标签</th><th>文件</th></tr></thead>
+          <thead><tr><th>状态</th><th>标题</th><th>日期</th><th>标签</th><th>文件</th><th>操作</th></tr></thead>
           <tbody>{post_rows}</tbody>
         </table>
       </div>
@@ -574,7 +718,8 @@ class BlogPanelHandler(BaseHTTPRequestHandler):
         if parsed.path != "/":
             self.send_error(HTTPStatus.NOT_FOUND)
             return
-        self.send_html(render_page())
+        edit_file = parse_qs(parsed.query).get("edit", [""])[-1]
+        self.send_html(render_page(edit_file=edit_file))
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
@@ -587,6 +732,7 @@ class BlogPanelHandler(BaseHTTPRequestHandler):
             "/action/install_dependencies": lambda _: install_dependencies(),
             "/action/create_post": create_post,
             "/action/publish_post": publish_post,
+            "/action/save_post": save_post,
             "/action/add_friend": add_friend,
             "/action/delete_friend": delete_friend,
             "/action/start_preview": lambda _: start_preview(),

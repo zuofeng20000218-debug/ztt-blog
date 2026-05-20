@@ -39,6 +39,7 @@ python .\scripts\blog_panel.py
 - 检查环境：确认 Git、Node、npm 是否可用。
 - 安装/更新依赖：在 `site/` 里执行 `npm ci` 或 `npm install`。
 - 新建文章：自动生成 Markdown/MDX 文件和 frontmatter。
+- 编辑已有文章：修改已发布文章或草稿的标题、摘要、标签、日期、封面、草稿状态和正文。
 - 发布草稿：把 `draft: true` 改成 `draft: false`。
 - 添加友链：写入 `site/src/data/friends.json`。
 - 删除友链：从 `friends.json` 移除对应链接。
@@ -78,6 +79,8 @@ draft: true
 ```
 
 草稿不会出现在首页、文章列表、标签、归档、搜索和 RSS 里。写完后在面板点击“发布这篇”即可公开。
+
+已发布文章也可以在面板里重新编辑。保存后本地 Markdown/MDX 文件会被更新，确认效果后再点击“构建并推送”。
 
 ## 友链数据
 
