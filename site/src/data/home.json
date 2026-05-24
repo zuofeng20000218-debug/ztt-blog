@@ -13,8 +13,8 @@
   "heroOverlayStart": 1.0,
   "heroOverlayEnd": 0.4,
   "heroPanelOpacity": 0.6,
-  "primaryButtonOpacity": 0.0,
-  "secondaryButtonOpacity": 0.0,
+  "primaryButtonOpacity": 0.8,
+  "secondaryButtonOpacity": 0.8,
   "showLatestPosts": true,
   "showTopics": true,
   "sections": [

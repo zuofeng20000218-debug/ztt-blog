@@ -7,6 +7,14 @@
 	--surface: 255, 255, 255;
 	--surface-subtle: 248, 250, 252;
 	--shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+	--font-body: "Atkinson", "Microsoft YaHei", "PingFang SC", sans-serif;
+	--font-heading: var(--font-body);
+	--font-nav: var(--font-body);
+	--font-home-title: var(--font-heading);
+	--font-home-text: var(--font-body);
+	--font-post-title: var(--font-heading);
+	--font-post-body: var(--font-body);
+	--font-footer: var(--font-body);
 }
 
 @font-face {
@@ -33,7 +41,7 @@ body {
 	margin: 0;
 	background: rgb(var(--surface-subtle));
 	color: rgb(var(--ink));
-	font-family: "Atkinson", "Microsoft YaHei", "PingFang SC", sans-serif;
+	font-family: var(--font-body);
 	font-size: 18px;
 	line-height: 1.75;
 	text-align: left;
@@ -65,6 +73,7 @@ h5,
 h6 {
 	margin: 0 0 0.75rem;
 	color: rgb(var(--ink));
+	font-family: var(--font-heading);
 	line-height: 1.25;
 }
 
@@ -180,6 +189,7 @@ header nav {
 
 .site-name {
 	color: rgb(var(--ink));
+	font-family: var(--font-nav);
 	font-size: 1rem;
 	font-weight: 700;
 	text-decoration: none;
@@ -188,6 +198,7 @@ header nav {
 
 .internal-links {
 	display: flex;
+	font-family: var(--font-nav);
 	flex-wrap: wrap;
 	align-items: center;
 	justify-content: flex-end;
@@ -204,6 +215,7 @@ footer {
 	border-top: 1px solid rgb(var(--line));
 	background: rgb(var(--surface));
 	color: rgb(var(--muted));
+	font-family: var(--font-footer);
 	font-size: 0.95rem;
 }
 
@@ -215,6 +227,41 @@ footer {
 
 .footer-inner p {
 	margin: 0.15rem 0;
+}
+
+.footer-socials {
+	display: flex;
+	gap: 0.55rem;
+	margin-top: 0.85rem;
+}
+
+.social-link {
+	display: inline-flex;
+	width: 1.75rem;
+	height: 1.75rem;
+	align-items: center;
+	justify-content: center;
+	border: 1px solid rgba(var(--line), 0.9);
+	border-radius: 8px;
+	background: rgb(var(--surface-subtle));
+	color: rgb(var(--muted));
+	text-decoration: none;
+	transition:
+		border-color 0.18s ease,
+		color 0.18s ease,
+		transform 0.18s ease;
+}
+
+.social-link:hover {
+	border-color: rgba(37, 99, 235, 0.45);
+	color: var(--accent);
+	transform: translateY(-1px);
+}
+
+.social-link svg {
+	width: 1.05rem;
+	height: 1.05rem;
+	fill: currentColor;
 }
 
 .hero {
@@ -246,6 +293,10 @@ footer {
 	color: rgb(var(--ink));
 }
 
+.hero h1 {
+	font-family: var(--font-home-title);
+}
+
 .hero-kicker,
 .eyebrow {
 	margin-bottom: 0.8rem;
@@ -259,6 +310,7 @@ footer {
 .page-lede {
 	max-width: 720px;
 	color: rgb(var(--muted));
+	font-family: var(--font-home-text);
 	font-size: 1.1rem;
 }
 
@@ -375,6 +427,7 @@ footer {
 	width: min(760px, 100%);
 	margin: 0 auto;
 	color: rgb(var(--ink));
+	font-family: var(--font-post-body);
 }
 
 .prose p {
@@ -387,6 +440,7 @@ footer {
 
 .title {
 	margin-bottom: 2rem;
+	font-family: var(--font-post-title);
 	text-align: center;
 }
 

@@ -1,15 +1,40 @@
 ---
-import { SITE_AUTHOR, SITE_TITLE } from '../consts';
+import footer from '../data/footer.json';
 
 const today = new Date();
+const year = today.getFullYear().toString();
+const copyright = footer.copyright.replace('{year}', year);
+const socialLinks = [
+	{ id: 'douyin', label: '抖音', href: footer.douyinHref },
+	{ id: 'bilibili', label: 'Bilibili', href: footer.bilibiliHref },
+].filter((item) => item.href);
 ---
 
 <footer>
 	<div class="footer-inner">
-		<p>&copy; {today.getFullYear()} {SITE_AUTHOR}. All rights reserved.</p>
+		<p>{copyright}</p>
 		<p>
-			{SITE_TITLE} 使用 Astro 构建，托管在 Cloudflare Pages。
-			<a href="/rss.xml">RSS</a>
+			{footer.description}
+			{footer.showRss && footer.rssHref && footer.rssLabel && <a href={footer.rssHref}>{footer.rssLabel}</a>}
 		</p>
+		{
+			socialLinks.length > 0 && (
+				<div class="footer-socials" aria-label="社交主页">
+					{socialLinks.map((item) => (
+						<a class={`social-link ${item.id}`} href={item.href} target="_blank" rel="noopener noreferrer" aria-label={item.label}>
+							{item.id === 'douyin' ? (
+								<svg viewBox="0 0 24 24" aria-hidden="true">
+									<path d="M14.8 3v10.1a4.7 4.7 0 1 1-4.7-4.7c.5 0 1 .1 1.4.2v3.2a1.8 1.8 0 1 0 0 1.3V3h3.3c.4 2.5 2.1 4.3 4.7 4.7v3.2c-1.8-.1-3.4-.8-4.7-2v.1z" />
+								</svg>
+							) : (
+								<svg viewBox="0 0 24 24" aria-hidden="true">
+									<path d="M8.1 4.2 10 6.4h4l1.9-2.2 1.5 1.3-.8.9h1.2A3.2 3.2 0 0 1 21 9.6v6.2a3.2 3.2 0 0 1-3.2 3.2H6.2A3.2 3.2 0 0 1 3 15.8V9.6a3.2 3.2 0 0 1 3.2-3.2h1.2l-.8-.9zM6.2 9A.7.7 0 0 0 5.5 9.7v6a.7.7 0 0 0 .7.7h11.6a.7.7 0 0 0 .7-.7v-6a.7.7 0 0 0-.7-.7zm2.6 2.8h2v2h-2zm4.4 0h2v2h-2z" />
+								</svg>
+							)}
+						</a>
+					))}
+				</div>
+			)
+		}
 	</div>
 </footer>
